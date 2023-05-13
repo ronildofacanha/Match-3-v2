@@ -3,18 +3,28 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
+public enum GameState
+{
+    wait,move
+}
+
 public class Board : MonoBehaviour
 {
-    public int width, height;
+    public GameState currentGameState = GameState.move;
+    public int width, height, offSet;
     public GameObject tilePrefab;
     public GameObject[] dots;
     public GameObject[,] allDots;
+    public GameObject explosionFX;
 
     private TB[,] allTile;
+    private FindMatches findMatches;
+
     void Start()
     {
         allTile = new TB[width, height];
         allDots = new GameObject[width, height];
+        findMatches = FindObjectOfType<FindMatches>();
         SetUp();
     }
 
@@ -65,25 +75,38 @@ public class Board : MonoBehaviour
         {
             for (int j = 0; j < height; j++)
             {
-                Vector2 tempPos = new Vector2(i, j);
-                GameObject TB = Instantiate(tilePrefab, tempPos, Quaternion.identity);
-                TB.transform.parent = transform;
-                TB.name = "(" + i + "," + j + ")";
+                Vector2 tempPos = new Vector2(i, j+offSet);
+                //GameObject TB = Instantiate(tilePrefab, tempPos, Quaternion.identity);
+               // TB.transform.parent = transform;
+               // TB.name = "TILE | (" + i + "," + j + ")";
                 // Dots
-                
                 int dotToUse = Random.Range(0, dots.Length);
                 int maxIterations = 0;
 
                 while (MatchesAt(i, j, dots[dotToUse]) && maxIterations < 100)
                 {
-                    dotToUse = Random.Range(0, dots.Length);
+
+                    int newDotToUse = Random.Range(0, dots.Length);
+
+                    if(dotToUse == newDotToUse)
+                    {
+                        dotToUse = Random.Range(0, dots.Length);
+                    }
+                    else
+                    {
+                        dotToUse = newDotToUse;
+                    }
+
                     maxIterations++;
                     Debug.Log(maxIterations);
                 }
 
                 GameObject dot = Instantiate(dots[dotToUse], tempPos, Quaternion.identity);
+
+                dot.GetComponent<Dot>().column = i;
+                dot.GetComponent<Dot>().row = j;
                 dot.transform.parent = transform;
-                dot.name = TB.name;
+                dot.name = "(" + i + "," + j + ")";
                 allDots[i, j] = dot;
             }
         }
@@ -93,6 +116,9 @@ public class Board : MonoBehaviour
     {
         if (allDots[x, y].GetComponent<Dot>().isMatched)
         {
+            findMatches.currentmatches.Remove(allDots[x, y]);
+            GameObject objFX = Instantiate(explosionFX,allDots[x, y].transform.position, Quaternion.identity);
+            Destroy(objFX, .5f);
             Destroy(allDots[x, y]);
             allDots[x, y] = null;
         }
@@ -126,6 +152,7 @@ public class Board : MonoBehaviour
                 }else if (nullCount > 0)
                 {
                     allDots[i, j].GetComponent<Dot>().row -= nullCount;
+                
                     allDots[i, j] = null;
                 }
             }
@@ -147,9 +174,15 @@ public class Board : MonoBehaviour
                     Vector2 tempPos = new Vector2(i, j);
                     int dotToUse = Random.Range(0, dots.Length);
                     GameObject piece = Instantiate(dots[dotToUse], tempPos, Quaternion.identity);
+                    piece.GetComponent<Dot>().column = i;
+                    piece.GetComponent<Dot>().row = j;
+
                     piece.transform.parent = transform;
-                    piece.name = "PEÇA NOVA";
+                    piece.name = "NEW (" + i + "," + j + ")";
+
                     allDots[i, j] = piece;
+                 
+
                 }
             }
         }
@@ -182,5 +215,7 @@ public class Board : MonoBehaviour
             yield return new WaitForSeconds(.5f);
             DestroyMatches();
         }
+        yield return new WaitForSeconds(.5f);
+        currentGameState = GameState.move;
     }
 }
